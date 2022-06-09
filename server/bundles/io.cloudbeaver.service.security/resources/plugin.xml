@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.2"?>
+
+<plugin>
+    <extension point="org.jkiss.dbeaver.pluginService">
+        <service class="io.cloudbeaver.service.security.SecurityPluginService"/>
+    </extension>
+
+    <extension point="org.jkiss.dbeaver.auth.provider">
+        <authProvider id="local" label="Local" description="Local name/password based authentication" class="io.cloudbeaver.auth.provider.local.LocalAuthProvider">
+            <credentials>
+                <propertyGroup label="General">
+                    <property id="user" label="User name" type="string" description="User name" admin="true" user="true" identifying="true"/>
+                    <property id="password" label="User password" type="string" description="User password" encryption="hash" admin="true" user="true"/>
+                </propertyGroup>
+            </credentials>
+
+        </authProvider>
+        <authProvider id="reverseProxy" label="reverseProxy" description="Reverse proxy header based authentication" trusted="true" class="io.cloudbeaver.auth.provider.rp.RPAuthProvider">
+            <credentials>
+                <propertyGroup label="General">
+                    <property id="user" label="User name" type="string" description="User name" admin="true" user="true" identifying="true"/>
+                </propertyGroup>
+            </credentials>
+        </authProvider>
+    </extension>
+</plugin>

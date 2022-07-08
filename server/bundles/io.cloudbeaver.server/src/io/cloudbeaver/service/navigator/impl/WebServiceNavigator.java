@@ -18,16 +18,17 @@ package io.cloudbeaver.service.navigator.impl;
 
 
 import io.cloudbeaver.DBWebException;
+import io.cloudbeaver.WebServiceUtils;
 import io.cloudbeaver.model.WebCommandContext;
 import io.cloudbeaver.model.WebConnectionInfo;
 import io.cloudbeaver.model.rm.DBNAbstractResourceManagerNode;
-import io.cloudbeaver.model.rm.DBNResourceManagerProject;
 import io.cloudbeaver.model.rm.DBNResourceManagerResource;
 import io.cloudbeaver.model.session.WebSession;
 import io.cloudbeaver.service.navigator.DBWServiceNavigator;
 import io.cloudbeaver.service.navigator.WebCatalog;
 import io.cloudbeaver.service.navigator.WebNavigatorNodeInfo;
 import io.cloudbeaver.service.navigator.WebStructContainers;
+import io.cloudbeaver.utils.WebConnectionFolderUtils;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
@@ -35,6 +36,7 @@ import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBPDataSourceFolder;
 import org.jkiss.dbeaver.model.DBPRefreshableObject;
 import org.jkiss.dbeaver.model.DBUtils;
+import org.jkiss.dbeaver.model.app.DBPDataSourceRegistry;
 import org.jkiss.dbeaver.model.edit.DBECommandContext;
 import org.jkiss.dbeaver.model.edit.DBEObjectMaker;
 import org.jkiss.dbeaver.model.edit.DBEObjectRenamer;
@@ -46,6 +48,7 @@ import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.DBSObjectContainer;
 import org.jkiss.dbeaver.model.struct.rdb.DBSCatalog;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
+import org.jkiss.dbeaver.registry.DataSourceRegistry;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
@@ -304,6 +307,9 @@ public class WebServiceNavigator implements DBWServiceNavigator {
             }
 
             if (node.supportsRename()) {
+                if (node instanceof DBNLocalFolder) {
+                    WebConnectionFolderUtils.validateConnectionFolder(newName);
+                }
                 node.rename(session.getProgressMonitor(), newName);
                 return node.getName();
             }
@@ -323,8 +329,10 @@ public class WebServiceNavigator implements DBWServiceNavigator {
     public int deleteNodes(@NotNull WebSession session, @NotNull List<String> nodePaths) throws DBWebException {
         try {
             DBRProgressMonitor monitor = session.getProgressMonitor();
-
-            Map<DBNDatabaseNode, DBEObjectMaker> nodes = new LinkedHashMap<>();
+            DBPDataSourceRegistry sessionRegistry = session.getSingletonProject().getDataSourceRegistry();
+            Set<DBPDataSourceFolder> tempFolders = ((DataSourceRegistry) sessionRegistry).getTemporaryFolders();
+            boolean containsFolderNodes = false;
+            Map<DBNNode, DBEObjectMaker> nodes = new LinkedHashMap<>();
             for (String path : nodePaths) {
                 DBNNode node = session.getNavigatorModel().getNodeByPath(monitor, path);
                 if (node == null) {
@@ -337,19 +345,40 @@ public class WebServiceNavigator implements DBWServiceNavigator {
                     if (objectDeleter == null || !objectDeleter.canDeleteObject(object)) {
                         throw new DBException("Object " + object + " delete is not supported");
                     }
-                    nodes.put((DBNDatabaseNode) node, objectDeleter);
+                    nodes.put(node, objectDeleter);
+                } else if (node instanceof DBNLocalFolder) {
+                    containsFolderNodes = true;
+                    DBPDataSourceFolder folder = ((DBNLocalFolder) node).getFolder();
+                    if (tempFolders.contains(folder)) {
+                        throw new DBWebException("Delete shared connection folder from navigator tree is not supported");
+                    }
+                    nodes.put(node, null);
+                } else if (node instanceof DBNResourceManagerResource) {
+                    nodes.put(node, null);
                 } else {
                     throw new DBWebException("Navigator node '"  + path + "' is not a database node");
                 }
             }
 
             Map<String, Object> options = new LinkedHashMap<>();
-            for (Map.Entry<DBNDatabaseNode, DBEObjectMaker> ne : nodes.entrySet()) {
-                DBSObject object = ne.getKey().getObject();
-                DBCExecutionContext executionContext = getCommandExecutionContext(object);
-                DBECommandContext commandContext = new WebCommandContext(executionContext, false);
-                ne.getValue().deleteObject(commandContext, object, options);
-                commandContext.saveChanges(session.getProgressMonitor(), options);
+            for (Map.Entry<DBNNode, DBEObjectMaker> ne : nodes.entrySet()) {
+                if (ne.getKey() instanceof DBNDatabaseNode) {
+                    DBSObject object = ((DBNDatabaseNode) ne.getKey()).getObject();
+                    DBCExecutionContext executionContext = getCommandExecutionContext(object);
+                    DBECommandContext commandContext = new WebCommandContext(executionContext, false);
+                    ne.getValue().deleteObject(commandContext, object, options);
+                    commandContext.saveChanges(session.getProgressMonitor(), options);
+                } else if (ne.getKey() instanceof DBNLocalFolder) {
+                    sessionRegistry.removeFolder(((DBNLocalFolder) ne.getKey()).getFolder(), false);
+                } else if (ne.getKey() instanceof DBNResourceManagerResource) {
+                    DBNResourceManagerResource rmResource = ((DBNResourceManagerResource) ne.getKey());
+                    String projectId = rmResource.getResourceProject().getId();
+                    String resourcePath = rmResource.getResourceFolder();
+                    session.getRmController().deleteResource(projectId, resourcePath, true);
+                }
+            }
+            if (containsFolderNodes) {
+                WebServiceUtils.updateConfigAndRefreshDatabases(session);
             }
             return nodes.size();
 

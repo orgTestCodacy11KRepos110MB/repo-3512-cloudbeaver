@@ -6,6 +6,8 @@
  * you may not use this file except in compliance with the License.
  */
 
-export function createPath(...names: Array<string | undefined>): string {
-  return names.filter(Boolean).join('/');
+import { RESOURCES_NODE_PATH } from './RESOURCES_NODE_PATH';
+
+export function isRMNavNode(nodeId: string): boolean {
+  return nodeId.startsWith(RESOURCES_NODE_PATH);
 }

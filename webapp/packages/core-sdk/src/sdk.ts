@@ -2519,6 +2519,13 @@ export type GetSharedProjectsQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type GetSharedProjectsQuery = { projects: Array<{ id: string, name: string, shared: boolean, description?: string, projectPermissions: Array<string> }> };
 
+export type GetSubjectProjectsPermissionGrantsQueryVariables = Exact<{
+  subjectId: Scalars['String'];
+}>;
+
+
+export type GetSubjectProjectsPermissionGrantsQuery = { grantedPermissions: Array<{ subjectId: string, subjectType: AdminSubjectType, objectPermissions: { objectId: string, permissions: Array<string> } }> };
+
 export type MoveResourceMutationVariables = Exact<{
   projectId: Scalars['String'];
   oldPath: Scalars['String'];
@@ -4057,6 +4064,13 @@ export const GetSharedProjectsDocument = `
   }
 }
     ${SharedProjectFragmentDoc}`;
+export const GetSubjectProjectsPermissionGrantsDocument = `
+    query getSubjectProjectsPermissionGrants($subjectId: String!) {
+  grantedPermissions: rmListSubjectProjectsPermissionGrants(subjectId: $subjectId) {
+    ...AdminObjectGrantInfo
+  }
+}
+    ${AdminObjectGrantInfoFragmentDoc}`;
 export const MoveResourceDocument = `
     mutation moveResource($projectId: String!, $oldPath: String!, $newPath: String!) {
   rmMoveResource(
@@ -4601,6 +4615,9 @@ export function getSdk(client: GraphQLClient, withWrapper: SdkFunctionWrapper = 
     },
     getSharedProjects(variables?: GetSharedProjectsQueryVariables, requestHeaders?: Dom.RequestInit["headers"]): Promise<GetSharedProjectsQuery> {
       return withWrapper((wrappedRequestHeaders) => client.request<GetSharedProjectsQuery>(GetSharedProjectsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'getSharedProjects', 'query');
+    },
+    getSubjectProjectsPermissionGrants(variables: GetSubjectProjectsPermissionGrantsQueryVariables, requestHeaders?: Dom.RequestInit["headers"]): Promise<GetSubjectProjectsPermissionGrantsQuery> {
+      return withWrapper((wrappedRequestHeaders) => client.request<GetSubjectProjectsPermissionGrantsQuery>(GetSubjectProjectsPermissionGrantsDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'getSubjectProjectsPermissionGrants', 'query');
     },
     moveResource(variables: MoveResourceMutationVariables, requestHeaders?: Dom.RequestInit["headers"]): Promise<MoveResourceMutation> {
       return withWrapper((wrappedRequestHeaders) => client.request<MoveResourceMutation>(MoveResourceDocument, variables, {...requestHeaders, ...wrappedRequestHeaders}), 'moveResource', 'mutation');

@@ -1,0 +1,9 @@
+query getSubjectProjectsPermissionGrants(
+  $subjectId: String!
+) {
+  grantedPermissions: rmListSubjectProjectsPermissionGrants(
+    subjectId: $subjectId
+  ) {
+    ...AdminObjectGrantInfo
+  }
+}

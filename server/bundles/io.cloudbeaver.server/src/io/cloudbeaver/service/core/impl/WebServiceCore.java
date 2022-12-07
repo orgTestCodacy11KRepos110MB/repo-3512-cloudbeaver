@@ -428,7 +428,6 @@ public class WebServiceCore implements DBWServiceCore {
         WebConnectionInfo connectionInfo = webSession.getWebConnectionInfo(projectId, config.getConnectionId());
         DBPDataSourceContainer dataSource = connectionInfo.getDataSourceContainer();
         webSession.addInfoMessage("Update connection - " + WebServiceUtils.getConnectionContainerInfo(dataSource));
-        DBPConnectionConfiguration oldConnectionConfig = new DBPConnectionConfiguration(dataSource.getConnectionConfiguration());
 
         if (!CommonUtils.isEmpty(config.getName())) {
             dataSource.setName(config.getName());
@@ -440,9 +439,6 @@ public class WebServiceCore implements DBWServiceCore {
         dataSource.setFolder(config.getFolder() != null ? sessionRegistry.getFolder(config.getFolder()) : null);
 
         WebServiceUtils.setConnectionConfiguration(dataSource.getDriver(), dataSource.getConnectionConfiguration(), config);
-        
-        boolean sendEvent = sendUpdateConnectionEvent(config, dataSource, oldConnectionConfig);
-
         WebServiceUtils.saveAuthProperties(
             dataSource,
             dataSource.getConnectionConfiguration(),
@@ -457,32 +453,13 @@ public class WebServiceCore implements DBWServiceCore {
         } catch (DBException e) {
             throw new DBWebException("Failed to update connection", e);
         }
-        if (sendEvent) {
-            WebEventUtils.addDataSourceUpdatedEvent(
-                webSession.getProjectById(projectId),
-                webSession.getSessionId(),
-                connectionInfo.getId(),
-                CBEventConstants.EventType.TYPE_UPDATE
-            );
-        }
+        WebEventUtils.addDataSourceUpdatedEvent(
+            webSession.getProjectById(projectId),
+            webSession.getSessionId(),
+            connectionInfo.getId(),
+            CBEventConstants.EventType.TYPE_UPDATE
+        );
         return connectionInfo;
-    }
-
-    /**
-     * Checks if only user credentials were changed
-     */
-    private boolean sendUpdateConnectionEvent(
-        @NotNull WebConnectionConfig config,
-        @NotNull DBPDataSourceContainer dataSource,
-        @NotNull DBPConnectionConfiguration oldConnectionConfig
-    ) {
-        if (!oldConnectionConfig.equals(dataSource.getConnectionConfiguration())) {
-            return true;
-        }
-        if (dataSource.getProject().isUseSecretStorage()) {
-            return dataSource.isSharedCredentials() != config.isSharedCredentials();
-        }
-        return dataSource.isSavePassword() != config.isSaveCredentials();
     }
 
     @Override

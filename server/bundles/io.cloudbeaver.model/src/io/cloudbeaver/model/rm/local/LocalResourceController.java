@@ -310,7 +310,7 @@ public class LocalResourceController implements RMController {
     }
 
     @Override
-    public boolean updateProjectDataSources(
+    public void updateProjectDataSources(
         @NotNull String projectId,
         @NotNull String configuration,
         @Nullable List<String> dataSourceIds
@@ -319,11 +319,10 @@ public class LocalResourceController implements RMController {
         final DBPDataSourceRegistry registry = project.getDataSourceRegistry();
         final DBPDataSourceConfigurationStorage storage = new DataSourceMemoryStorage(configuration.getBytes(StandardCharsets.UTF_8));
         final DataSourceConfigurationManager manager = new DataSourceConfigurationManagerBuffer();
-        var configChanged = ((DataSourcePersistentRegistry) registry).loadDataSources(List.of(storage), manager, true, false);
+        ((DataSourcePersistentRegistry) registry).loadDataSources(List.of(storage), manager, true, false);
         registry.checkForErrors();
         ((DataSourcePersistentRegistry) registry).saveDataSources();
         registry.checkForErrors();
-        return configChanged;
     }
 
     @Override

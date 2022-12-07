@@ -296,13 +296,13 @@ public class WebDataSourceRegistryProxy implements DBPDataSourceRegistry, DataSo
     }
 
     @Override
-    public boolean loadDataSources(
+    public void loadDataSources(
         @NotNull List<DBPDataSourceConfigurationStorage> storages,
         @NotNull DataSourceConfigurationManager manager,
         boolean refresh,
         boolean purgeUntouched
     ) {
-        return dataSourceRegistry.loadDataSources(storages, manager, refresh, purgeUntouched);
+        dataSourceRegistry.loadDataSources(storages, manager, refresh, purgeUntouched);
     }
 
     @Override

@@ -525,6 +525,16 @@ public class LocalResourceController implements RMController {
         if (!Files.exists(targetPath)) {
             throw new DBException("Resource '" + resourcePath + "' doesn't exists");
         }
+        try {
+            if (recursive) {
+                deleteResourcesRecursive(projectId, targetPath);
+            } else {
+                WebProjectImpl project = getProjectMetadata(projectId, false);
+                project.resetResourceProperties(resourcePath);
+            }
+        } catch (IOException | DBException e) {
+            log.warn("Failed to remove resources properties", e);
+        }
         List<RMResource> rmResourcePath = makeResourcePath(projectId, targetPath, recursive);
         try {
             if (targetPath.toFile().isDirectory()) {
@@ -535,11 +545,23 @@ public class LocalResourceController implements RMController {
         } catch (IOException e) {
             throw new DBException("Error deleting resource '" + resourcePath + "'", e);
         }
-        // Nullify resource properties if any
-        WebProjectImpl project = getProjectMetadata(projectId, false);
-        project.resetResourceProperties(resourcePath);
 
         fireRmResourceDeleteEvent(projectId, rmResourcePath);
+    }
+
+    private void deleteResourcesRecursive(@NotNull String projectId, @NotNull Path targetPath) throws DBException, IOException {
+        final var projectPath = getProjectPath(projectId);
+        var propertiesToRemove = new ArrayList<String>();
+        Files.walkFileTree(targetPath, (UniversalFileVisitor<Path>) (path, attrs) -> {
+            var resourcePropertiesPath = projectPath.relativize(path.toAbsolutePath());
+            propertiesToRemove.add(resourcePropertiesPath.toString());
+            return FileVisitResult.CONTINUE;
+        });
+        if (log.isDebugEnabled()) {
+            log.debug("Remove resources properties:\n" + propertiesToRemove);
+        }
+        getProjectMetadata(projectId, false)
+                .resetResourcesPropertiesBatch(propertiesToRemove);
     }
 
     @Override

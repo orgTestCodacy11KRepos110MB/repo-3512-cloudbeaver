@@ -528,22 +528,25 @@ public class LocalResourceController implements RMController {
 
     @Override
     public void deleteResource(@NotNull String projectId, @NotNull String resourcePath, boolean recursive) throws DBException {
+        if (log.isDebugEnabled()) {
+            log.debug("Removing resource from '" + resourcePath + "'" + (recursive ? " recursive" : ""));
+        }
         validateResourcePath(resourcePath);
         Path targetPath = getTargetPath(projectId, resourcePath);
         if (!Files.exists(targetPath)) {
             throw new DBException("Resource '" + resourcePath + "' doesn't exists");
         }
+        Collection<String> propertiesToRemove = List.of();
         try {
             if (recursive) {
-                deleteResourcesRecursive(projectId, targetPath);
+                propertiesToRemove = getPropertiesToRemove(projectId, targetPath);
             } else {
-                WebProjectImpl project = getProjectMetadata(projectId, false);
-                project.resetResourceProperties(resourcePath);
+                propertiesToRemove = List.of(resourcePath);
             }
         } catch (IOException | DBException e) {
             log.warn("Failed to remove resources properties", e);
         }
-        List<RMResource> rmResourcePath = makeResourcePath(projectId, targetPath, recursive);
+        final List<RMResource> rmResourcePath = makeResourcePath(projectId, targetPath, recursive);
         try {
             if (targetPath.toFile().isDirectory()) {
                 IOUtils.deleteDirectory(targetPath);
@@ -554,22 +557,24 @@ public class LocalResourceController implements RMController {
             throw new DBException("Error deleting resource '" + resourcePath + "'", e);
         }
 
-        fireRmResourceDeleteEvent(projectId, rmResourcePath);
-    }
-
-    private void deleteResourcesRecursive(@NotNull String projectId, @NotNull Path targetPath) throws DBException, IOException {
-        final var projectPath = getProjectPath(projectId);
-        var propertiesToRemove = new ArrayList<String>();
-        Files.walkFileTree(targetPath, (UniversalFileVisitor<Path>) (path, attrs) -> {
-            var resourcePropertiesPath = projectPath.relativize(path.toAbsolutePath());
-            propertiesToRemove.add(resourcePropertiesPath.toString());
-            return FileVisitResult.CONTINUE;
-        });
         if (log.isDebugEnabled()) {
             log.debug("Remove resources properties:\n" + propertiesToRemove);
         }
         getProjectMetadata(projectId, false)
                 .resetResourcesPropertiesBatch(propertiesToRemove);
+        log.debug("Fire resource delete event");
+        fireRmResourceDeleteEvent(projectId, rmResourcePath);
+    }
+
+    private Collection<String> getPropertiesToRemove(@NotNull String projectId, @NotNull Path targetPath) throws DBException, IOException {
+        final var projectPath = getProjectPath(projectId);
+        var propertiesToRemove = new ArrayList<String>();
+        Files.walkFileTree(targetPath, (UniversalFileVisitor<Path>) (path, attrs) -> {
+            var resourcePropertiesPath = projectPath.relativize(path.toAbsolutePath());
+            propertiesToRemove.add(normalizeResourcePath(resourcePropertiesPath.toString()));
+            return FileVisitResult.CONTINUE;
+        });
+        return propertiesToRemove;
     }
 
     @Override

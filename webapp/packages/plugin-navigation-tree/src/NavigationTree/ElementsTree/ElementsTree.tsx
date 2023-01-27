@@ -151,12 +151,18 @@ export const ElementsTree = observer<Props>(function ElementsTree({
   const autoOpenFolders = useCallback(async function autoOpenFolders(nodeId: string, path: string[]) {
     path = [...path];
 
+    console.log('calls');
+
+
     if (!ref.settings?.foldersTree && !folderExplorer.options.expandFoldersWithSingleElement) {
       return;
     }
 
     while (folderExplorer.options.expandFoldersWithSingleElement) {
       const children = ref.getChildren(nodeId);
+
+      console.log(children?.length);
+
 
       if (children?.length === 1) {
         const nextNodeId = children[0];
@@ -169,6 +175,7 @@ export const ElementsTree = observer<Props>(function ElementsTree({
         path.push(nodeId);
         nodeId = nextNodeId;
       } else {
+        console.log('break here');
         break;
       }
     }

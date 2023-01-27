@@ -36,7 +36,6 @@
     "@cloudbeaver/core-theming": "~0.1.0",
     "@cloudbeaver/core-ui": "~0.1.0",
     "@cloudbeaver/core-utils": "~0.1.0",
-    "@cloudbeaver/core-cli": "~0.1.0",
     "@popperjs/core": "~2.11.6",
     "react-popper": "~2.3.0"
   },
@@ -44,7 +43,6 @@
     "react": "~18.x.x",
     "mobx": "~6.x.x",
     "mobx-react-lite": "~3.x.x",
-    "reshadow": "~0.x.x",
-    "@testing-library/jest-dom": "~5.x.x"
+    "reshadow": "~0.x.x"
   }
 }
